@@ -73,8 +73,9 @@ def all_icons_theme_name():
     for location in locations:
         for folder in os.listdir(location):
             f = os.path.join(location,folder)
-            if "index.theme" in os.listdir(f):
-                result.append(folder)
+            if os.path.isdir(f):
+                if "index.theme" in os.listdir(f):
+                    result.append(folder)
     return result
 
 class MW(Gtk.Window):
