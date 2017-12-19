@@ -66,7 +66,17 @@ def get_icons_theme_and_catogery(force=False):
             result[name]=ll.copy()
             ll.clear()
     return result
-    
+
+def all_icons_theme_name():
+    result = []
+    locations = [l for l in ["/usr/share/icons","/usr/local/icons",GLib.get_user_data_dir()+"/icons",GLib.get_home_dir()+"/.icons"] if os.path.isdir(l)]
+    for location in locations:
+        for folder in os.listdir(location):
+            f = os.path.join(location,folder)
+            if "index.theme" in os.listdir(f):
+                result.append(folder)
+    return result
+
 class MW(Gtk.Window):
 
     def __init__(self):
@@ -78,6 +88,8 @@ class MW(Gtk.Window):
         
         self.vb = Gtk.VBox(spacing=10)
         self.add(self.vb)
+        self.comboboxtext = Gtk.ComboBoxText()
+        self.handler = self.comboboxtext.connect("changed", self.on_comboboxtext_changed)
         update_button = Gtk.Button("Refresh")
         update_button.connect("clicked",self.on_update_button_clicked,False)
         update_button_internet = Gtk.Button("Update Info From Internet")
@@ -88,15 +100,20 @@ class MW(Gtk.Window):
         self.vb.pack_end(aboutbutton,False,False,0)
         self.vb.pack_end(update_button_internet,False,False,0)
         self.vb.pack_end(update_button,False,False,0)
+        self.vb.pack_end(self.comboboxtext,False,False,0)
         self.vb.pack_end(self.spinner,False,False,0)
         self.gui()
         
-    def gui(self):
+    def gui(self,iconname=""):
         self.grid = Gtk.Grid()
         self.vb.pack_start(self.grid,True,True,0)
         if not self.icons_catogerys:
             return
-        
+        if iconname and iconname!="Current Theme":
+            self.icontheme = Gtk.IconTheme.new()
+            self.icontheme.set_custom_theme(iconname)
+        else:
+            self.icontheme = Gtk.IconTheme.get_default()
         stack = Gtk.Stack()
         stack.set_hexpand(True)
         stack.set_vexpand(True)
@@ -104,7 +121,20 @@ class MW(Gtk.Window):
         stackswitcher = Gtk.StackSwitcher()
         stackswitcher.set_stack(stack)
         self.grid.attach(stackswitcher, 0, 0, 1, 1)
+
+        all_icons_theme = all_icons_theme_name()
+        all_icons_theme.append("Current Theme")
         
+        with self.comboboxtext.handler_block(self.handler):
+            self.comboboxtext.remove_all()
+            for iconthemename in all_icons_theme:
+                self.comboboxtext.append(iconthemename,iconthemename)
+            if iconname:
+                self.comboboxtext.set_active_id(iconname)
+            else:
+                self.comboboxtext.set_active_id("Current Theme")
+        
+
         for name,icons in self.icons_catogerys.items():
             sw = Gtk.ScrolledWindow()
             flowbox = Gtk.FlowBox(homogeneous=True)
@@ -118,7 +148,7 @@ class MW(Gtk.Window):
                     button  = Gtk.Button(relief=Gtk.ReliefStyle.NONE)
                     button.connect("clicked",self.on_button_clicked,icon)
                     vbutton = Gtk.VBox(spacing=3) 
-                    pixbuf  = Gtk.IconTheme.get_default().load_icon(icon, 64, 0)
+                    pixbuf  = self.icontheme.load_icon(icon, 64, 0)
                     image   = Gtk.Image.new_from_pixbuf(pixbuf)
                     label   = Gtk.Label(icon,selectable=True)
                     vbutton.pack_start(image,False,False,0)
@@ -131,25 +161,32 @@ class MW(Gtk.Window):
 
         self.show_all()
 
+    def on_comboboxtext_changed(self,com):
+        icon = self.comboboxtext.get_active_text()
+        self.on_update_button_clicked(iconname=icon)
+        
     def on_button_clicked(self,button,iconname):
         self.clipboard.set_text(iconname, -1)
         
-    def on_update_button_clicked(self,button,force):
+    def on_update_button_clicked(self,button=None,force=False,iconname=""):
         self.vb.remove(self.grid)
         self.grid.destroy()
-        threading.Thread(target=self.refresh_gui,args=(force,)).start()
+        threading.Thread(target=self.refresh_gui,args=(force,iconname)).start()
 
-    def refresh_gui(self,force):
+    def refresh_gui(self,force,iconname):
+        GLib.idle_add(self.set_sensitive,False)
         GLib.idle_add(self.spinner.start)
-        self.icons_catogerys.clear()
+        if isinstance(self.icons_catogerys,list):
+            self.icons_catogerys.clear()
         self.icons_catogerys = get_icons_theme_and_catogery(force)
         GLib.idle_add(self.spinner.stop)
-        GLib.idle_add(self.gui)
+        GLib.idle_add(self.set_sensitive,True)
+        GLib.idle_add(self.gui,iconname)
         
     def on_aboutbutton_clicked(self,button):
         about = Gtk.AboutDialog(parent=self,transient_for=self, modal=True)
         about.set_program_name("ArGAIT")
-        about.set_version("0.1")
+        about.set_version("0.2")
         about.set_copyright("Copyright © 2017 Youssef Sourani")
         about.set_comments("Arfedora Get All IconTheme")
         about.set_website("https://arfedora.blogspot.com")
