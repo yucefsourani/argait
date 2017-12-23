@@ -149,7 +149,7 @@ class MW(Gtk.Window):
                     button  = Gtk.Button(relief=Gtk.ReliefStyle.NONE)
                     button.connect("clicked",self.on_button_clicked,icon)
                     vbutton = Gtk.VBox(spacing=3) 
-                    pixbuf  = self.icontheme.load_icon(icon, 64, 0)
+                    pixbuf  = self.icontheme.load_icon(icon, 64, Gtk.IconLookupFlags(16))
                     image   = Gtk.Image.new_from_pixbuf(pixbuf)
                     label   = Gtk.Label(icon,selectable=True)
                     vbutton.pack_start(image,False,False,0)
